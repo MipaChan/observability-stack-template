@@ -1,0 +1,43 @@
+# Define the protocols to receive data for.
+# See https://opentelemetry.io/docs/collector/configuration/#receivers
+receivers:
+  # Configure receiving OTLP data via HTTP on port 4318
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - '*'
+        compression_algorithms: ["", "gzip"]
+
+# Define processors to process received data.
+# See https://opentelemetry.io/docs/collector/configuration/#processors
+processors:
+  batch:
+
+# Define exporters to data stores.
+# See https://opentelemetry.io/docs/collector/configuration/#exporters
+# Also see https://github.com/open-telemetry/opentelemetry-collector/tree/main/processor#recommended-processors 
+exporters:
+  otlp:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+  otlphttp/logs:
+    endpoint: http://loki:3100/otlp
+    tls:
+      insecure: true
+
+
+# Define the full service graph for the OpenTelemetry collector.
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/logs]

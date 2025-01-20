@@ -1,0 +1,67 @@
+services:
+
+  otel-collector:
+    image: otel/opentelemetry-collector:0.117.0
+    command: [ "--config=/etc/otel-collector-config.yaml" ]
+    volumes:
+      - ./config/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    expose:
+      - 4318 # OTLP HTTP
+    depends_on:
+      - tempo
+    networks:
+      - dokploy-network
+
+  # The Grafana dashboarding server.
+  grafana:
+    image: grafana/grafana:11.4.0
+    volumes:
+      - ./config/grafana/datasources:/etc/grafana/provisioning/datasources
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
+      - GF_SERVER_HTTP_PORT=8080
+    expose:
+      - 8080
+    networks:
+      - dokploy-network
+
+
+  # The Tempo service stores traces send to it by Grafana opentelemetry-collector, and takes
+  # queries from Grafana to visualise those traces.
+  tempo:
+    image: grafana/tempo:2.7.0
+    command: [ "-config.file=/etc/tempo.yaml" ]
+    user: root
+    volumes:
+      - ./config/tempo.yaml:/etc/tempo.yaml
+      - tempo-data:/tmp/tempo
+    expose:
+      - 4317
+    networks:
+      - dokploy-network
+
+
+  # The Loki service stores logs sent to it, and takes queries from Grafana
+  # to visualise those logs.
+  loki:
+    image: grafana/loki:3.3.2
+    command: ["--pattern-ingester.enabled=true", "-config.file=/etc/loki.yaml"]
+    expose:
+      - 3100
+    volumes:
+      - ./config/loki.yaml:/etc/loki.yaml
+      - loki-data:/tmp/loki
+    networks:
+      - dokploy-network
+
+
+volumes:
+  tempo-data:
+  loki-data:
+
+networks:
+  dokploy-network:
+    external: true
